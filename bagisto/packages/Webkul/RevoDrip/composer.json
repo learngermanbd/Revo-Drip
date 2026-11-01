@@ -1,0 +1,44 @@
+{
+    "name": "revodrip/revo-drip-store-manager",
+    "description": "REVO DRIP Store Manager - simplified Bangladesh checkout and delivery zones for Bagisto 2.5.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "bagisto",
+        "laravel",
+        "checkout",
+        "bangladesh",
+        "delivery",
+        "revodrip"
+    ],
+    "authors": [
+        {
+            "name": "REVO DRIP",
+            "homepage": "https://revodrip.top"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "ext-json": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Webkul\\RevoDrip\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Webkul\\RevoDrip\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Webkul\\RevoDrip\\Providers\\RevoDripServiceProvider"
+            ],
+            "aliases": {}
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

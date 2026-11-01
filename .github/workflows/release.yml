@@ -1,0 +1,122 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, for example v1.0.0'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      - name: Resolve version
+        id: version
+        run: |
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+
+          if ! printf '%s' "$VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Version must look like v1.0.0 (got: $VERSION)" >&2
+            exit 1
+          fi
+
+          echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "number=${VERSION#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Lint package sources
+        run: |
+          find bagisto/packages/Webkul/RevoDrip -name '*.php' -print0 \
+            | xargs -0 -n1 php -l > /dev/null
+          echo "All PHP files passed syntax checks."
+
+      - name: Validate composer.json
+        run: |
+          php -r 'json_decode(file_get_contents("bagisto/packages/Webkul/RevoDrip/composer.json"), true, 512, JSON_THROW_ON_ERROR);'
+          echo "composer.json is valid JSON."
+
+      - name: Guard against secrets in the archive
+        run: |
+          if find bagisto/packages/Webkul/RevoDrip \
+              \( -name '.env' -o -name '.env.*' -o -name '*.pem' -o -name '*.key' -o -name '*.p12' \) \
+              -print | grep -q .; then
+            echo "Refusing to package secrets." >&2
+            exit 1
+          fi
+          echo "No secret files found."
+
+      - name: Build installable ZIP
+        run: |
+          mkdir -p dist/revo-drip-store-manager
+          rsync -a --exclude '.DS_Store' --exclude '.git' \
+            bagisto/packages/Webkul/RevoDrip/ dist/revo-drip-store-manager/
+          cp bagisto/phpunit.revodrip.xml dist/revo-drip-store-manager/phpunit.revodrip.xml
+
+          cd dist
+          zip -rq "revo-drip-store-manager-${{ steps.version.outputs.number }}.zip" revo-drip-store-manager
+          sha256sum "revo-drip-store-manager-${{ steps.version.outputs.number }}.zip" > checksums.txt
+
+          unzip -l "revo-drip-store-manager-${{ steps.version.outputs.number }}.zip" | head -40
+
+      - name: Write release notes
+        run: |
+          {
+            echo "## REVO DRIP Store Manager ${{ steps.version.outputs.tag }}"
+            echo
+            echo "Standalone Bagisto 2.5 extension: four field Bangladesh checkout with Inside Dhaka /"
+            echo "Outside Dhaka delivery charges."
+            echo
+            echo "### Compatibility"
+            echo
+            echo "- Bagisto 2.5.x"
+            echo "- Laravel 13.x"
+            echo "- PHP 8.4"
+            echo
+            echo "### Installation"
+            echo
+            echo "Download the ZIP below, unpack it into \`bagisto/packages/Webkul\`, rename the folder to"
+            echo "\`RevoDrip\`, then follow INSTALL.md (registration, \`composer dump-autoload\`,"
+            echo "\`php artisan migrate --force\`, \`php artisan optimize:clear\`)."
+            echo
+            echo "Use \`/opt/alt/php84/usr/bin/php\` on cPanel hosting."
+            echo
+            echo "### Verification"
+            echo
+            echo "PHP syntax checks, composer.json validation and the secret guard ran in CI."
+            echo "See CHANGELOG.md for the full list of changes."
+          } > dist/release-notes.md
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TARGET=""
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TARGET="--target ${{ github.event.repository.default_branch }}"
+          fi
+
+          gh release create "${{ steps.version.outputs.tag }}" \
+            "dist/revo-drip-store-manager-${{ steps.version.outputs.number }}.zip" \
+            dist/checksums.txt \
+            --title "REVO DRIP Store Manager ${{ steps.version.outputs.tag }}" \
+            --notes-file dist/release-notes.md \
+            $TARGET
