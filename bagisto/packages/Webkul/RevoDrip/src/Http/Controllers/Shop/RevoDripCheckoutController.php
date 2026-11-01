@@ -44,7 +44,15 @@ class RevoDripCheckoutController extends Controller
 
         $data = $request->validated();
 
-        $zone = $data['delivery_zone'] ?? $this->zones->defaultZone() ?? DeliveryZoneService::INSIDE;
+        /**
+         * Signed in customers keep their account as the order contact. The checkout field is
+         * read only, so this only defends against a tampered request.
+         */
+        if ($customer = auth()->guard('customer')->user()) {
+            $data['email'] = $customer->email;
+        }
+
+        $zone = $this->resolveZone($data);
 
         Cart::saveAddresses($this->addressMapper->toCartAddresses($data));
 
@@ -64,12 +72,14 @@ class RevoDripCheckoutController extends Controller
             return $this->cartRedirect();
         }
 
+        $charge = $zone ? $this->zones->charge($zone) : 0.0;
+
         return response()->json([
             'redirect'                  => false,
             'zone'                      => $zone,
-            'zone_label'                => $this->zones->label($zone),
-            'delivery_charge'           => $this->zones->charge($zone),
-            'formatted_delivery_charge' => core()->currency($this->zones->charge($zone)),
+            'zone_label'                => $zone ? $this->zones->label($zone) : null,
+            'delivery_charge'           => $charge,
+            'formatted_delivery_charge' => core()->currency($charge),
             'data'                      => Payment::getSupportedPaymentMethods(),
             'cart'                      => new CartResource($cart),
         ]);
@@ -113,9 +123,9 @@ class RevoDripCheckoutController extends Controller
     /**
      * Store the zone as the cart shipping method, priced by the server side carrier.
      */
-    protected function applyDeliveryZone(string $zone): void
+    protected function applyDeliveryZone(?string $zone): void
     {
-        if (! $this->zones->exists($zone) || ! $this->zones->isEnabled()) {
+        if (! $zone || ! $this->zones->exists($zone) || ! $this->zones->isEnabled()) {
             return;
         }
 
@@ -132,6 +142,23 @@ class RevoDripCheckoutController extends Controller
         if (Shipping::isMethodCodeExists($method)) {
             Cart::saveShippingMethod($method);
         }
+    }
+
+    /**
+     * The zone this submission is charged for.
+     *
+     * When the store hides the delivery area selector the shopper has no choice to make, so the
+     * cart's existing zone wins over anything posted, which keeps the selection unambiguous.
+     */
+    protected function resolveZone(array $data): ?string
+    {
+        $cartZone = $this->zones->zoneForMethod(Cart::getCart()?->shipping_method);
+
+        if (! $this->zones->selectionVisible()) {
+            return $cartZone ?? $this->zones->defaultZone();
+        }
+
+        return $data['delivery_zone'] ?? $cartZone ?? $this->zones->defaultZone();
     }
 
     /**

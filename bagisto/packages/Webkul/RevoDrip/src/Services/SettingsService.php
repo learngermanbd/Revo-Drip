@@ -16,6 +16,11 @@ class SettingsService
     protected const CACHE_KEY = 'revodrip.settings';
 
     /**
+     * Cache key holding only the simplified checkout flag, read during boot without a query.
+     */
+    public const FLAG_CHECKOUT = 'revodrip.flag.checkout';
+
+    /**
      * Seconds the stored settings stay cached.
      */
     protected const CACHE_TTL = 600;
@@ -26,6 +31,21 @@ class SettingsService
      * @var array|null
      */
     protected ?array $resolved = null;
+
+    /**
+     * Whether the simplified checkout should replace the storefront address step.
+     *
+     * Read from the cache so the service provider does not touch the database on boot; the
+     * flag is refreshed whenever the settings are loaded or saved.
+     */
+    public static function checkoutEnabled(): bool
+    {
+        try {
+            return (bool) Cache::get(self::FLAG_CHECKOUT, config('revodrip.checkout.enabled', true));
+        } catch (Throwable $e) {
+            return (bool) config('revodrip.checkout.enabled', true);
+        }
+    }
 
     /**
      * Every setting, with package defaults filling the gaps.
@@ -85,6 +105,11 @@ class SettingsService
         });
 
         $this->forget();
+
+        /**
+         * Re-read once so the boot flag reflects what was just saved.
+         */
+        $this->get('checkout.enabled', true);
     }
 
     /**
@@ -118,7 +143,16 @@ class SettingsService
             return Cache::remember(
                 self::CACHE_KEY,
                 self::CACHE_TTL,
-                fn () => DB::table('revo_drip_settings')->pluck('value', 'key')->all()
+                function () {
+                    $stored = DB::table('revo_drip_settings')->pluck('value', 'key')->all();
+
+                    Cache::forever(
+                        self::FLAG_CHECKOUT,
+                        (bool) Arr::get(Arr::undot($stored), 'checkout.enabled', config('revodrip.checkout.enabled', true))
+                    );
+
+                    return $stored;
+                }
             );
         } catch (Throwable $e) {
             Log::warning('RevoDrip: settings table unavailable, using defaults. '.$e->getMessage());

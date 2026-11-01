@@ -1,5 +1,7 @@
 <?php
 
+uses(Webkul\Shop\Tests\ShopTestCase::class)->in(__DIR__);
+
 /**
  * Checkout flow feature tests need a migrated Bagisto database and the storefront
  * channels seeded. They run only when REVODRIP_FEATURE_TESTS=1 so the package test

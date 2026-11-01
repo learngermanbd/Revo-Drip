@@ -46,6 +46,9 @@ See [INSTALL.md](INSTALL.md). Upgrade steps live in [UPDATING.md](UPDATING.md).
    never set the delivery price.
 4. Bagisto's own order endpoint creates the order. The `checkout.order.save.after` listener
    writes the delivery snapshot into `revo_drip_order_deliveries`.
+5. Returning shoppers get the cart's own zone back (`shipping_method = revodrip_*`) rather than
+   the package default, and the address is restored from `billing_address` with its line breaks
+   intact.
 
 ### Address mapping
 
@@ -58,9 +61,12 @@ Bagisto stores `first_name`, `last_name` and `city` as non nullable columns. The
 
 ### Email behaviour
 
-Guests use the email they type. For registered customers Bagisto keeps the **account** email as
-the order contact (`Cart::setCustomerPersonnelDetails()`), while the typed email is stored on the
-address record. Account email, verification, password recovery and social login are untouched.
+Guests use the email they type. For signed in customers the field is filled from the account and
+then read only, with a short note explaining that order updates go to the account email. The
+sender is the account, never the typed value, so order, invoice and account stay consistent.
+Bagisto keeps the **account** email as the order contact (`Cart::setCustomerPersonnelDetails()`);
+the extension defends this server side as well. Account email, verification, password recovery and
+Social Login are never written to.
 
 ## Settings
 

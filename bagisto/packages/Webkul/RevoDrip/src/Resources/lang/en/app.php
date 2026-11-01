@@ -23,8 +23,9 @@ return [
         ],
 
         'help' => [
-            'phone'   => 'Bangladeshi mobile number, for example 01712345678.',
-            'address' => 'Write the complete address in one place so the courier can find you.',
+            'phone'         => 'Bangladeshi mobile number, for example 01712345678.',
+            'address'       => 'Write the complete address in one place so the courier can find you.',
+            'account-email' => 'Order updates will be sent to your account email.',
         ],
 
         'validation' => [
@@ -118,7 +119,8 @@ return [
             'charge-bdt'   => 'Delivery charge (BDT)',
             'charge-info'  => 'Calculated on the server. Customers cannot change this amount.',
             'saved'        => 'Delivery settings saved.',
-            'invalid-zone' => 'Please choose a valid delivery area.',
+            'invalid-zone'   => 'Please choose a valid delivery area.',
+            'disable-blocked' => 'Delivery zones cannot be switched off while no other shipping method is available for stockable products.',
         ],
 
         'general' => [

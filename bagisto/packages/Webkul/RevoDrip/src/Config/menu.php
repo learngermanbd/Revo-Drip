@@ -6,7 +6,7 @@ return [
         'name' => 'revodrip::app.admin.menu.title',
         'route' => 'revodrip.admin.dashboard.index',
         'sort' => 9,
-        'icon' => 'settings/store.svg',
+        'icon' => 'icon-store',
     ], [
         'key'  => 'revodrip.dashboard',
         'name' => 'revodrip::app.admin.menu.dashboard',

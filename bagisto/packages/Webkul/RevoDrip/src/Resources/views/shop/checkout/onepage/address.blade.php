@@ -2,6 +2,12 @@
     $revoDripZones = app(\Webkul\RevoDrip\Services\DeliveryZoneService::class);
 
     $revoDripSettings = app(\Webkul\RevoDrip\Services\SettingsService::class);
+
+    $revoDripCustomer = auth()->guard('customer')->user();
+
+    $revoDripZoneSelection = $revoDripZones->selectionVisible();
+
+    $revoDripText = fn (string $key): string => (string) trans((string) $revoDripSettings->get($key));
 @endphp
 
 {!! view_render_event('bagisto.shop.checkout.onepage.address.before') !!}
@@ -13,12 +19,14 @@
 
     <v-revodrip-checkout-address
         :cart="cart"
-        :zones="{{ json_encode($revoDripZones->zones()) }}"
-        default-zone="{{ $revoDripZones->defaultZone() }}"
-        :show-zone="{{ $revoDripZones->isEnabled() ? 'true' : 'false' }}"
-        delivery-notes="{{ $revoDripSettings->get('general.delivery_notes') }}"
-        address-route="{{ route('revodrip.checkout.address') }}"
-        zone-route="{{ route('revodrip.checkout.delivery-zone') }}"
+        :zones='{!! json_encode($revoDripZones->zones()) !!}'
+        :default-zone='{!! json_encode($revoDripZones->defaultZone()) !!}'
+        :show-zone='{!! json_encode($revoDripZoneSelection) !!}'
+        :is-guest='{!! json_encode(is_null($revoDripCustomer)) !!}'
+        :account-email='{!! json_encode($revoDripCustomer?->email ?? '') !!}'
+        :delivery-notes='{!! json_encode($revoDripText('general.delivery_notes')) !!}'
+        address-route='{!! json_encode(route('revodrip.checkout.address')) !!}'
+        zone-route='{!! json_encode(route('revodrip.checkout.delivery-zone')) !!}'
         @processing="stepForward"
         @processed="stepProcessed"
     ></v-revodrip-checkout-address>
@@ -38,7 +46,7 @@
             <!-- Full Name -->
             <div>
                 <label class="mb-1.5 block text-sm font-medium" for="revodrip_name">
-                    {{ $revoDripSettings->get('checkout.fields.name.label') }} <span class="text-red-600">*</span>
+                    {{ $revoDripText('checkout.fields.name.label') }} <span class="text-red-600">*</span>
                 </label>
 
                 <input
@@ -46,7 +54,7 @@
                     type="text"
                     class="w-full rounded-xl border border-zinc-200 px-4 py-2.5 text-sm focus:border-navyBlue focus:outline-hidden"
                     v-model="form.name"
-                    placeholder="{{ $revoDripSettings->get('checkout.fields.name.placeholder') }}"
+                    placeholder="{{ $revoDripText('checkout.fields.name.placeholder') }}"
                     autocomplete="name"
                     required
                 >
@@ -58,7 +66,7 @@
             <div class="grid grid-cols-2 gap-4 max-sm:grid-cols-1">
                 <div>
                     <label class="mb-1.5 block text-sm font-medium" for="revodrip_phone">
-                        {{ $revoDripSettings->get('checkout.fields.phone.label') }} <span class="text-red-600">*</span>
+                        {{ $revoDripText('checkout.fields.phone.label') }} <span class="text-red-600">*</span>
                     </label>
 
                     <input
@@ -66,7 +74,7 @@
                         type="tel"
                         class="w-full rounded-xl border border-zinc-200 px-4 py-2.5 text-sm focus:border-navyBlue focus:outline-hidden"
                         v-model="form.phone"
-                        placeholder="{{ $revoDripSettings->get('checkout.fields.phone.placeholder') }}"
+                        placeholder="{{ $revoDripText('checkout.fields.phone.placeholder') }}"
                         autocomplete="tel"
                         inputmode="tel"
                         required
@@ -79,18 +87,24 @@
 
                 <div>
                     <label class="mb-1.5 block text-sm font-medium" for="revodrip_email">
-                        {{ $revoDripSettings->get('checkout.fields.email.label') }} <span class="text-red-600">*</span>
+                        {{ $revoDripText('checkout.fields.email.label') }} <span class="text-red-600">*</span>
                     </label>
 
                     <input
                         id="revodrip_email"
                         type="email"
                         class="w-full rounded-xl border border-zinc-200 px-4 py-2.5 text-sm focus:border-navyBlue focus:outline-hidden"
+                        :class="! isGuest ? 'bg-gray-100 text-gray-500' : ''"
                         v-model="form.email"
-                        placeholder="{{ $revoDripSettings->get('checkout.fields.email.placeholder') }}"
+                        placeholder="{{ $revoDripText('checkout.fields.email.placeholder') }}"
                         autocomplete="email"
+                        :readonly="! isGuest"
                         required
                     >
+
+                    <p class="mt-1 text-xs text-zinc-500" v-if="! isGuest">
+                        @lang('revodrip::app.checkout.help.account-email')
+                    </p>
 
                     <p class="mt-1 text-xs text-red-600" v-if="errors.email">@{{ errors.email[0] }}</p>
                 </div>
@@ -99,14 +113,14 @@
             <!-- Complete Delivery Address -->
             <div>
                 <label class="mb-1.5 block text-sm font-medium" for="revodrip_address">
-                    {{ $revoDripSettings->get('checkout.fields.address.label') }} <span class="text-red-600">*</span>
+                    {{ $revoDripText('checkout.fields.address.label') }} <span class="text-red-600">*</span>
                 </label>
 
                 <textarea
                     id="revodrip_address"
                     class="min-h-28 w-full rounded-xl border border-zinc-200 px-4 py-2.5 text-sm focus:border-navyBlue focus:outline-hidden"
                     v-model="form.address"
-                    placeholder="{{ $revoDripSettings->get('checkout.fields.address.placeholder') }}"
+                    placeholder="{{ $revoDripText('checkout.fields.address.placeholder') }}"
                     autocomplete="street-address"
                     required
                 ></textarea>
@@ -135,7 +149,8 @@
                                 name="delivery_zone"
                                 class="h-4 w-4"
                                 :value="zone.code"
-                                :checked="form.delivery_zone === zone.code"
+                                v-model="form.delivery_zone"
+                                :disabled="isUpdatingZone"
                                 @change="selectZone(zone.code)"
                             >
 
@@ -151,6 +166,18 @@
                 <p class="mt-2 text-xs text-zinc-500" v-if="deliveryNotes">@{{ deliveryNotes }}</p>
             </div>
 
+            <!-- Delivery area when the selector is switched off by the store -->
+            <div
+                class="flex items-center justify-between rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+                v-else
+            >
+                <span>@lang('revodrip::app.checkout.delivery-area')</span>
+
+                <span class="font-semibold">@{{ selectedZone ? selectedZone.label : '' }}</span>
+            </div>
+
+            <p class="text-xs text-red-600" v-if="zoneError">@{{ zoneError }}</p>
+
             <!-- Delivery total preview -->
             <div class="flex items-center justify-between rounded-xl bg-gray-100 px-4 py-3 text-sm" v-if="selectedZone">
                 <span>@lang('revodrip::app.checkout.delivery-charge')</span>
@@ -162,7 +189,7 @@
                 <button
                     type="submit"
                     class="primary-button rounded-2xl px-11 py-3 max-md:w-full max-md:max-w-full max-md:rounded-lg"
-                    :disabled="isStoring"
+                    :disabled="isStoring || isUpdatingZone"
                 >
                     <span v-if="! isStoring">@lang('revodrip::app.checkout.continue')</span>
                     <span v-else>@lang('revodrip::app.checkout.processing')</span>
@@ -186,6 +213,10 @@
 
                 showZone: { type: Boolean, default: true },
 
+                isGuest: { type: Boolean, default: true },
+
+                accountEmail: { type: String, default: '' },
+
                 addressRoute: { type: String, required: true },
 
                 zoneRoute: { type: String, required: true },
@@ -200,12 +231,18 @@
                         phone: '',
                         email: '',
                         address: '',
-                        delivery_zone: this.defaultZone || Object.keys(this.zones)[0] || '',
+                        delivery_zone: '',
                     },
 
                     errors: {},
 
+                    zoneError: '',
+
                     isStoring: false,
+
+                    isUpdatingZone: false,
+
+                    userPickedZone: false,
                 };
             },
 
@@ -217,6 +254,30 @@
                 selectedZone() {
                     return this.zones[this.form.delivery_zone] || null;
                 },
+
+                /**
+                 * Delivery area the cart is already charged for, so a returning shopper sees
+                 * the same area and the same charge instead of the package default.
+                 */
+                cartZone() {
+                    const method = this.cart ? this.cart.shipping_method : null;
+
+                    if (typeof method !== 'string' || method.indexOf('revodrip_') !== 0) {
+                        return '';
+                    }
+
+                    const code = method.substring('revodrip_'.length);
+
+                    return this.zones[code] ? code : '';
+                },
+            },
+
+            watch: {
+                cartZone(code) {
+                    if (! this.userPickedZone && code) {
+                        this.form.delivery_zone = code;
+                    }
+                },
             },
 
             mounted() {
@@ -227,37 +288,75 @@
                 prefill() {
                     const address = this.cart ? this.cart.billing_address : null;
 
-                    if (! address) {
-                        return;
+                    if (address) {
+                        this.form.name = [address.first_name, address.last_name].filter(Boolean).join(' ').trim();
+
+                        this.form.phone = address.phone || '';
+
+                        /**
+                         * The cart address is serialised as an array of lines, so restore the
+                         * textarea with newlines instead of letting it collapse into one line.
+                         */
+                        this.form.address = Array.isArray(address.address)
+                            ? address.address.join('\n')
+                            : (address.address || '');
                     }
 
-                    this.form.name = [address.first_name, address.last_name].filter(Boolean).join(' ').trim();
+                    this.form.email = this.isGuest
+                        ? ((address && address.email) || '')
+                        : (this.accountEmail || (address && address.email) || '');
 
-                    this.form.phone = address.phone || '';
-
-                    this.form.email = address.email || '';
-
-                    this.form.address = address.address || '';
+                    this.form.delivery_zone = this.cartZone || this.defaultZone || Object.keys(this.zones)[0] || '';
                 },
 
                 selectZone(code) {
+                    const previous = this.form.delivery_zone;
+
                     this.form.delivery_zone = code;
+
+                    this.userPickedZone = true;
+
+                    this.zoneError = '';
 
                     if (! this.cart || ! this.cart.billing_address) {
                         return;
                     }
 
+                    this.isUpdatingZone = true;
+
                     this.$axios.post(this.zoneRoute, { delivery_zone: code })
-                        .then((response) => {
-                            this.$emit('zone-updated', response.data);
+                        .then(() => {
+                            this.refreshCart();
                         })
-                        .catch(() => {});
+                        .catch((error) => {
+                            this.form.delivery_zone = previous;
+
+                            this.zoneError = (error.response && error.response.data && error.response.data.message)
+                                || '@lang('revodrip::app.checkout.error')';
+                        })
+                        .finally(() => {
+                            this.isUpdatingZone = false;
+                        });
+                },
+
+                refreshCart() {
+                    const parent = this.$parent;
+
+                    if (parent && typeof parent.getCart === 'function') {
+                        parent.getCart();
+                    }
                 },
 
                 submit() {
                     this.errors = {};
 
+                    this.zoneError = '';
+
                     this.isStoring = true;
+
+                    if (! this.isGuest) {
+                        this.form.email = this.accountEmail;
+                    }
 
                     this.$emit('processing', 'payment');
 

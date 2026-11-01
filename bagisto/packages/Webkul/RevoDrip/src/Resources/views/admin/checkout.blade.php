@@ -96,7 +96,7 @@
                                     type="text"
                                     class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800"
                                     name="checkout[fields][{{ $field }}][label]"
-                                    value="{{ $settings['checkout']['fields'][$field]['label'] ?? '' }}"
+                                    value="{{ trans((string) ($settings['checkout']['fields'][$field]['label'] ?? '')) }}"
                                     required
                                 >
                             </label>
@@ -110,7 +110,7 @@
                                     type="text"
                                     class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800"
                                     name="checkout[fields][{{ $field }}][placeholder]"
-                                    value="{{ $settings['checkout']['fields'][$field]['placeholder'] ?? '' }}"
+                                    value="{{ trans((string) ($settings['checkout']['fields'][$field]['placeholder'] ?? '')) }}"
                                 >
                             </label>
                         </div>

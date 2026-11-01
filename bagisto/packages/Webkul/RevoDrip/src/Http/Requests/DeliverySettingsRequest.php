@@ -40,4 +40,26 @@ class DeliverySettingsRequest extends FormRequest
             'delivery.default_zone.in' => trans('revodrip::app.admin.delivery.invalid-zone'),
         ];
     }
+
+    /**
+     * Refuse to switch the zones off when that would leave stockable products with no
+     * shipping method at all, which would make checkout impossible.
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            if ((string) $this->input('delivery.enabled', '1') === '1') {
+                return;
+            }
+
+            if (app(DeliveryZoneService::class)->alternativeCarrier() !== null) {
+                return;
+            }
+
+            $validator->errors()->add(
+                'delivery.enabled',
+                trans('revodrip::app.admin.delivery.disable-blocked')
+            );
+        });
+    }
 }

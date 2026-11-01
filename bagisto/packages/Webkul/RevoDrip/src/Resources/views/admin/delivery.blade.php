@@ -89,7 +89,7 @@
                                     type="text"
                                     class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800"
                                     name="delivery[zones][{{ $zone['code'] }}][label]"
-                                    value="{{ $zone['label'] }}"
+                                    value="{{ $zone['raw_label'] }}"
                                     required
                                 >
                             </label>

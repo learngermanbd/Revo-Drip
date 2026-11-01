@@ -26,11 +26,6 @@
             "Webkul\\RevoDrip\\": "src/"
         }
     },
-    "autoload-dev": {
-        "psr-4": {
-            "Webkul\\RevoDrip\\Tests\\": "tests/"
-        }
-    },
     "extra": {
         "laravel": {
             "providers": [

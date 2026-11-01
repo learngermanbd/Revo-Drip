@@ -5,7 +5,6 @@ namespace Webkul\RevoDrip\Providers;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
-use Throwable;
 use Webkul\RevoDrip\Listeners\RecordOrderDelivery;
 use Webkul\RevoDrip\Services\SettingsService;
 use Webkul\Theme\ViewRenderEventManager;
@@ -81,13 +80,7 @@ class RevoDripServiceProvider extends ServiceProvider
      */
     protected function prependStorefrontViews(): void
     {
-        try {
-            $enabled = (bool) $this->app->make(SettingsService::class)->get('checkout.enabled', true);
-        } catch (Throwable $e) {
-            $enabled = true;
-        }
-
-        if (! $enabled) {
+        if (! SettingsService::checkoutEnabled()) {
             return;
         }
 

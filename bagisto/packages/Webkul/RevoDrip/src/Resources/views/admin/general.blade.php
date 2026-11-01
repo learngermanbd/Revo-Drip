@@ -54,7 +54,7 @@
                         <textarea
                             class="min-h-24 w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800"
                             name="general[delivery_notes]"
-                        >{{ $settings['general']['delivery_notes'] ?? '' }}</textarea>
+                        >{{ trans((string) ($settings['general']['delivery_notes'] ?? '')) }}</textarea>
 
                         <span class="text-xs text-gray-500 dark:text-gray-400">@lang('revodrip::app.admin.general.delivery-notes-info')</span>
                     </label>

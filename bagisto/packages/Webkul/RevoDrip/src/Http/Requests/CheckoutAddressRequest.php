@@ -28,7 +28,7 @@ class CheckoutAddressRequest extends FormRequest
             'email'         => ['required', 'string', 'email:rfc', 'max:190'],
             'address'       => ['required', 'string', 'min:8', 'max:1000'],
             'delivery_zone' => [
-                Rule::requiredIf(fn () => app(DeliveryZoneService::class)->isEnabled()),
+                Rule::requiredIf(fn () => app(DeliveryZoneService::class)->selectionVisible()),
                 'nullable',
                 'string',
                 Rule::in(app(DeliveryZoneService::class)->codes()),

@@ -2,6 +2,9 @@
 
 namespace Webkul\RevoDrip\Services;
 
+use Throwable;
+use Webkul\RevoDrip\Shipping\Carriers\DeliveryZone as DeliveryZoneCarrier;
+
 class DeliveryZoneService
 {
     /**
@@ -25,11 +28,19 @@ class DeliveryZoneService
     public function __construct(protected SettingsService $settings) {}
 
     /**
-     * Whether delivery zone selection is switched on.
+     * Whether delivery zones are switched on at all.
      */
     public function isEnabled(): bool
     {
         return (bool) $this->settings->get('delivery.enabled', true);
+    }
+
+    /**
+     * Whether the shopper is allowed to see and change the delivery area.
+     */
+    public function selectionVisible(): bool
+    {
+        return $this->isEnabled() && (bool) $this->settings->get('checkout.show_delivery_zone', true);
     }
 
     /**
@@ -61,13 +72,21 @@ class DeliveryZoneService
     }
 
     /**
-     * Admin editable label for a zone.
+     * Translated, admin editable label of a zone.
      */
     public function label(string $code): string
     {
-        $label = (string) $this->settings->get("delivery.zones.{$code}.label", $code);
+        $label = (string) trans((string) $this->settings->get("delivery.zones.{$code}.label", $code));
 
         return $label !== '' ? $label : $code;
+    }
+
+    /**
+     * Label as stored in the settings, for the admin form and its inputs.
+     */
+    public function rawLabel(string $code): string
+    {
+        return (string) $this->settings->get("delivery.zones.{$code}.label", $code);
     }
 
     /**
@@ -105,6 +124,7 @@ class DeliveryZoneService
             $zones[$code] = [
                 'code'             => $code,
                 'label'            => $this->label($code),
+                'raw_label'        => $this->rawLabel($code),
                 'charge'           => $charge,
                 'formatted_charge' => core()->currency($charge),
                 'method'           => $this->method($code),
@@ -126,5 +146,38 @@ class DeliveryZoneService
         }
 
         return $this->codes()[0] ?? null;
+    }
+
+    /**
+     * Shipping method code of another usable carrier, if the store has one.
+     *
+     * Switching the delivery zones off would leave stockable products without any shipping
+     * method, so the admin screens use this to refuse that change.
+     */
+    public function alternativeCarrier(): ?string
+    {
+        foreach ((array) config('carriers', []) as $key => $carrier) {
+            $class = $carrier['class'] ?? null;
+
+            if (
+                $key === self::METHOD_PREFIX
+                || empty($class)
+                || $class === DeliveryZoneCarrier::class
+            ) {
+                continue;
+            }
+
+            try {
+                $instance = app($class);
+
+                if (method_exists($instance, 'isAvailable') && $instance->isAvailable()) {
+                    return (string) ($carrier['code'] ?? $key);
+                }
+            } catch (Throwable $e) {
+                continue;
+            }
+        }
+
+        return null;
     }
 }
