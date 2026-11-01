@@ -1,0 +1,38 @@
+
+# Large backup archive
+/bagisto.zip
+
+# Secrets
+/bagisto/.env
+/bagisto/.env.*
+!/bagisto/.env.example
+
+# Dependencies and generated files
+/bagisto/vendor/
+/bagisto/node_modules/
+/bagisto/storage/logs/
+/bagisto/storage/framework/cache/
+/bagisto/storage/framework/sessions/
+/bagisto/storage/framework/views/
+/bagisto/bootstrap/cache/
+
+# Server logs
+/error_log
+
+# Include Bagisto public uploaded assets
+!/bagisto/storage/app/public/
+!/bagisto/storage/app/public/**/
+!/bagisto/storage/app/public/**/*.png
+!/bagisto/storage/app/public/**/*.jpg
+!/bagisto/storage/app/public/**/*.jpeg
+!/bagisto/storage/app/public/**/*.webp
+!/bagisto/storage/app/public/**/*.svg
+!/bagisto/storage/app/public/**/*.gif
+
+# Additional archives and runtime data
+/bagisto/bagisto-2.5.zip
+/bagisto/error_log
+/bagisto/storage/app/private/
+/bagisto/storage/debugbar/
+/bagisto/storage/framework/
+/bagisto/storage/fonts/
